@@ -5,65 +5,222 @@
 
 import wx
 import os
+import sys
+import subprocess
+
+global passphraseentryembed
+global fullpathimage
+global fullpathembed
+
+class PipeText(object):
+    def __init__(self,aWxTextCtrl):
+        self.out=aWxTextCtrl
+
+    def write(self,string):
+        self.out.WriteText(string)
 
 class MyFrame(wx.Frame):
     def __init__(self, *args, **kwds):
 
-        kwds["style"] = wx.ICONIZE|wx.CAPTION|wx.MINIMIZE|wx.CLOSE_BOX|wx.MINIMIZE_BOX|wx.MAXIMIZE_BOX|wx.SYSTEM_MENU|wx.RESIZE_BORDER|wx.CLIP_CHILDREN
+        kwds["style"] = wx.DEFAULT_FRAME_STYLE
         wx.Frame.__init__(self, *args, **kwds)
-        self.button_jpeg_select = wx.Button(self, -1, "Select Jpeg...")
-        self.text_ctrl_jpeg_details = wx.TextCtrl(self, -1, "")
-        self.button_covertfile_select = wx.Button(self, -1, "Select File to embed...")
-        self.text_ctrl_covertfile_details = wx.TextCtrl(self, -1, "")
-        self.button_embed = wx.Button(self, -1, "Embed")
+        
+
+        #Menu
+        self.frame_1_menubar = wx.MenuBar()
+        wxglade_tmp_menu = wx.Menu()
+        wxglade_tmp_menu.Append(1, "&Quit\tCtrl+Q", "", wx.ITEM_NORMAL)
+        self.frame_1_menubar.Append(wxglade_tmp_menu, "File")
+        wxglade_tmp_menu = wx.Menu()
+        wxglade_tmp_menu.Append(2, "Scan image for stegofile...", "", wx.ITEM_NORMAL)
+        self.frame_1_menubar.Append(wxglade_tmp_menu, "Utilities")
+        wxglade_tmp_menu = wx.Menu()
+        wxglade_tmp_menu.Append(wx.NewId(), "About", "", wx.ITEM_NORMAL)
+        self.frame_1_menubar.Append(wxglade_tmp_menu, "Help")
+        self.SetMenuBar(self.frame_1_menubar)
+
+        
+        self.hide_button = wx.StaticText(self, -1, "Embed")
+        self.ninjafile_button = wx.Button(self, -1, "File to embed in cover file...")
+        self.ninjafile_text_ctrl = wx.TextCtrl(self, -1, "")
+        self.jpeg_button  = wx.Button(self, -1, "File to use as cover...")
+        self.jpeg_text_ctrl = wx.TextCtrl(self, -1, "")
+        self.button_5 = wx.Button(self, -1, "File to use as output stegofile...")
+        self.text_ctrl_4 = wx.TextCtrl(self, -1, "")
+        self.checkbox_1 = wx.CheckBox(self, -1, "Use encryption")
+        self.choice_1 = wx.Choice(self, -1, choices=["rijndael-128", "cast-128", "gost", "twofish", "arcfour", "cast-256", "loki97", "rijndael-192", "saferplus", "wake", "des", "rijndael-256", "serpent", "xtea", "blowfish", "enigma", "rc2", "tripledes"])
+        self.choice_2 = wx.Choice(self, -1, choices=["cbc", "cfb", "ctr", "ecb", "ncfb", "nofb", "ofb"])
+        self.checkbox_2 = wx.CheckBox(self, -1, "Use compression")
+        self.panel_2 = wx.Panel(self, -1)
+        self.label_2 = wx.StaticText(self, -1, "Compression level (1 fast, 9 best):")
+        self.choice_3 = wx.Choice(self, -1, choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"])
+        self.checkbox_3 = wx.CheckBox(self, -1, "Embed file name")
+        self.checkbox_4 = wx.CheckBox(self, -1, "Embed file checksum")
+        self.checkbox_5 = wx.CheckBox(self, -1, "Overwrite output file")
+        self.label_1 = wx.StaticText(self, -1, "Passphrase:")
+        self.passphrase_text_ctrl_embed = wx.TextCtrl(self, -1, "")
+        self.panel_1 = wx.Panel(self, -1)
+        self.button_1 = wx.Button(self, -1, "Embed")
+        self.button_2 = wx.Button(self, -1, "Cancel")
+        self.static_line_1 = wx.StaticLine(self, -1)
+        self.label_5 = wx.StaticText(self, -1, "Extract")
+        self.button_8 = wx.Button(self, -1, "Stegofile to use as input...")
+        self.text_ctrl_6 = wx.TextCtrl(self, -1, "")
+        self.button_9 = wx.Button(self, -1, "File to extract to...")
+        self.text_ctrl_7 = wx.TextCtrl(self, -1, "")
+        self.checkbox_6 = wx.CheckBox(self, -1, "Overwrite output file")
+        self.label_3 = wx.StaticText(self, -1, "Passphrase:")
+        self.text_ctrl_5 = wx.TextCtrl(self, -1, "")
+        self.panel_3 = wx.Panel(self, -1)
+        self.button_6 = wx.Button(self, -1, "Extract")
+        self.button_7 = wx.Button(self, -1, "Cancel")
+        global log
+        log = wx.TextCtrl(self, -1, "", style=wx.TE_MULTILINE)
 
         self.__set_properties()
         self.__do_layout()
-
-	self.Bind(wx.EVT_BUTTON, self.onClicked, self.button_embed)
-	self.Bind(wx.EVT_BUTTON, self.onClicked2, self.button_jpeg_select)
-	self.Bind(wx.EVT_BUTTON, self.onClicked3, self.button_covertfile_select)
+        
+        self.Bind(wx.EVT_MENU, self.OnQuit, id=1)
+        self.Bind(wx.EVT_MENU, self.OnScan, id=2)
+        self.Bind(wx.EVT_BUTTON, self.hideButtonOnClick, self.button_1)
+        self.Bind(wx.EVT_BUTTON, self.jpegButtonOnClick, self.jpeg_button )
+        self.Bind(wx.EVT_BUTTON, self.ninjafileButtonOnClick, self.ninjafile_button)
+	    
 
 
     def __set_properties(self):
 
-        self.SetTitle("Stegosaur : Where files go undercover :")
-        self.SetSize((420, 160))
-        self.SetToolTipString("Stegosaur | Ninja files.")
-        self.button_jpeg_select.SetMinSize((172, 28))
-        self.text_ctrl_jpeg_details.SetMinSize((210, 27))
-        self.button_covertfile_select.SetMinSize((172, 28))
-        self.text_ctrl_covertfile_details.SetMinSize((210, 27))
-        self.button_embed.SetMinSize((150, 50))
+        self.SetTitle("Stegostorus : Where files go undercover")
+        self.SetSize((600, 820))
+        self.hide_button.SetFont(wx.Font(15, wx.MODERN, wx.NORMAL, wx.BOLD, 0, ""))
+        self.ninjafile_button.SetMinSize((230, 28))
+        self.ninjafile_text_ctrl.SetMinSize((330, 27))
+        self.jpeg_button .SetMinSize((230, 28))
+        self.jpeg_text_ctrl.SetMinSize((330, 27))
+        self.button_5.SetMinSize((230, 28))
+        self.text_ctrl_4.SetMinSize((330, 27))
+        self.choice_1.SetSelection(0)
+        self.choice_2.SetSelection(0)
+        self.panel_2.SetMinSize((90, 48))
+        self.choice_3.SetSelection(0)
+        self.passphrase_text_ctrl_embed.SetMinSize((482, 27))
+        self.button_1.SetMinSize((100, 40))
+        self.button_2.SetMinSize((100, 40))
+        self.label_5.SetFont(wx.Font(15, wx.MODERN, wx.NORMAL, wx.BOLD, 0, ""))
+        self.button_8.SetMinSize((230, 28))
+        self.text_ctrl_6.SetMinSize((330, 27))
+        self.button_9.SetMinSize((230, 28))
+        self.text_ctrl_7.SetMinSize((330, 27))
+        self.text_ctrl_5.SetMinSize((482, 27))
+        self.button_6.SetMinSize((100, 40))
+        self.button_7.SetMinSize((100, 40))
+        log.SetMinSize((592, 100))
+        log.SetBackgroundColour(wx.Colour(0, 0, 0))
+        log.SetForegroundColour(wx.Colour(0, 255, 0))
+        log.Enable(False)
 
 
     def __do_layout(self):
 
         sizer_1 = wx.BoxSizer(wx.VERTICAL)
         sizer_2 = wx.BoxSizer(wx.VERTICAL)
+        sizer_11 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_12 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_13 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_15 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_14 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_10 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_9 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_8 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_7 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_6 = wx.BoxSizer(wx.HORIZONTAL)
+        sizer_5 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_4 = wx.BoxSizer(wx.HORIZONTAL)
         sizer_3 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer_3.Add(self.button_jpeg_select, 0, wx.ALL|wx.ADJUST_MINSIZE, 10)
-        sizer_3.Add(self.text_ctrl_jpeg_details, 0, wx.TOP|wx.BOTTOM|wx.ADJUST_MINSIZE, 10)
+        sizer_2.Add(self.hide_button, 0, wx.LEFT|wx.TOP, 10)
+        sizer_3.Add(self.ninjafile_button, 0, wx.ALL, 10)
+        sizer_3.Add(self.ninjafile_text_ctrl, 0, wx.ALL, 10)
         sizer_2.Add(sizer_3, 1, wx.EXPAND, 0)
-        sizer_4.Add(self.button_covertfile_select, 0, wx.LEFT|wx.RIGHT|wx.ADJUST_MINSIZE, 10)
-        sizer_4.Add(self.text_ctrl_covertfile_details, 0, wx.BOTTOM|wx.ALIGN_RIGHT|wx.ADJUST_MINSIZE, 10)
+        sizer_4.Add(self.jpeg_button , 0, wx.ALL, 10)
+        sizer_4.Add(self.jpeg_text_ctrl, 0, wx.ALL, 10)
         sizer_2.Add(sizer_4, 1, wx.EXPAND, 0)
-        sizer_2.Add(self.button_embed, 0, wx.BOTTOM|wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER_VERTICAL|wx.ADJUST_MINSIZE, 10)
+        sizer_5.Add(self.button_5, 0, wx.ALL, 10)
+        sizer_5.Add(self.text_ctrl_4, 0, wx.ALL, 10)
+        sizer_2.Add(sizer_5, 1, wx.EXPAND, 0)
+        sizer_6.Add(self.checkbox_1, 0, wx.ALL, 15)
+        sizer_6.Add(self.choice_1, 0, wx.ALL, 10)
+        sizer_6.Add(self.choice_2, 0, wx.ALL, 10)
+        sizer_2.Add(sizer_6, 1, wx.EXPAND, 0)
+        sizer_7.Add(self.checkbox_2, 0, wx.ALL, 15)
+        sizer_7.Add(self.panel_2, 1, wx.EXPAND, 0)
+        sizer_7.Add(self.label_2, 0, wx.ALL, 15)
+        sizer_7.Add(self.choice_3, 0, wx.ALL, 10)
+        sizer_2.Add(sizer_7, 1, wx.EXPAND, 0)
+        sizer_8.Add(self.checkbox_3, 0, wx.ALL, 15)
+        sizer_8.Add(self.checkbox_4, 0, wx.ALL, 15)
+        sizer_8.Add(self.checkbox_5, 0, wx.ALL, 15)
+        sizer_2.Add(sizer_8, 1, wx.EXPAND, 0)
+        sizer_9.Add(self.label_1, 0, wx.ALL, 15)
+        sizer_9.Add(self.passphrase_text_ctrl_embed, 0, wx.TOP, 10)
+        sizer_2.Add(sizer_9, 1, wx.EXPAND, 0)
+        sizer_10.Add(self.panel_1, 1, wx.EXPAND, 0)
+        sizer_10.Add(self.button_1, 0, wx.LEFT|wx.RIGHT|wx.BOTTOM, 10)
+        sizer_10.Add(self.button_2, 0, wx.RIGHT|wx.BOTTOM, 10)
+        sizer_2.Add(sizer_10, 1, wx.EXPAND, 0)
+        sizer_2.Add(self.static_line_1, 0, wx.ALL|wx.EXPAND, 10)
+        sizer_2.Add(self.label_5, 0, wx.LEFT, 10)
+        sizer_14.Add(self.button_8, 0, wx.ALL, 10)
+        sizer_14.Add(self.text_ctrl_6, 0, wx.ALL, 10)
+        sizer_2.Add(sizer_14, 1, wx.EXPAND, 0)
+        sizer_15.Add(self.button_9, 0, wx.ALL, 10)
+        sizer_15.Add(self.text_ctrl_7, 0, wx.ALL, 10)
+        sizer_2.Add(sizer_15, 1, wx.EXPAND, 0)
+        sizer_13.Add(self.checkbox_6, 0, wx.ALL, 15)
+        sizer_2.Add(sizer_13, 1, wx.EXPAND, 0)
+        sizer_12.Add(self.label_3, 0, wx.ALL, 15)
+        sizer_12.Add(self.text_ctrl_5, 0, wx.TOP, 10)
+        sizer_2.Add(sizer_12, 1, wx.EXPAND, 0)
+        sizer_11.Add(self.panel_3, 1, wx.EXPAND, 0)
+        sizer_11.Add(self.button_6, 0, wx.RIGHT|wx.BOTTOM, 10)
+        sizer_11.Add(self.button_7, 0, wx.RIGHT|wx.BOTTOM, 10)
+        sizer_2.Add(sizer_11, 1, wx.EXPAND, 0)
+        sizer_2.Add(log, 0, wx.ALL|wx.EXPAND, 4)
         sizer_1.Add(sizer_2, 1, wx.EXPAND, 0)
         self.SetSizer(sizer_1)
         self.Layout()
-        self.SetSize((420, 160))
+        self.SetSize((600, 820))
+        
+        redir=PipeText(log)
+        sys.stdout=redir
+        
+        
+    #Embed    
+    def hideButtonOnClick(self, event): 
+	passphraseentry = self.passphrase_text_ctrl_embed.GetValue()
+		
+	try:
+	    fullpathimage
+	except NameError:
+	    print("Please select a jpeg to hide a file in")
+	try:
+	    fullpathembed
+	except NameError:
+	    print 'Please select a file to hide\n'
+	    
+	process = subprocess.Popen(['steghide', 'embed', '-p', passphraseentry, '-cf', fullpathimage, '-ef', fullpathembed], stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+	    
+	out, err = process.communicate()
+        if out:
+            print out
+        if err:
+            print err
+	
 
 
-    def onClicked(self, event):
-	cmd="steghide embed -p ninja -cf '%(var1)s' -ef '%(var2)s'"
-	cmd = cmd % { 'var1' : fullpathimage, 'var2' : fullpathembed } 
-        os.system(cmd)
-	os.system('notify-send Stegosaur Finished')
 
-
-    def onClicked2(self, event):
+    
+    #Select jpeg
+    def jpegButtonOnClick(self, event):
 	self.dirname = ''
 	dlg = wx.FileDialog(self, "Choose a jpg image", self.dirname,"", "*.*", wx.OPEN)
 	if dlg.ShowModal()==wx.ID_OK:
@@ -74,9 +231,11 @@ class MyFrame(wx.Frame):
 		imagefile = self.filename
 		global fullpathimage
 		fullpathimage = "%s/%s" % (workingdirimage, imagefile)
-		self.text_ctrl_jpeg_details.SetValue( "%s" % (fullpathimage) )
+		self.jpeg_text_ctrl.SetValue( "%s" % (fullpathimage) )
 
-    def onClicked3(self, event):
+    
+    #Select file to hide
+    def ninjafileButtonOnClick(self, event):
 	self.dirname = ''
 	dlg = wx.FileDialog(self, "Choose a file to go undercover", self.dirname,"", "*.*", wx.OPEN)
 	if dlg.ShowModal()==wx.ID_OK:
@@ -87,7 +246,37 @@ class MyFrame(wx.Frame):
 		embedfile = self.filename
 		global fullpathembed
 		fullpathembed = "%s/%s" % (workingdirfile, embedfile)
-		self.text_ctrl_covertfile_details.SetValue( "%s" % (fullpathembed) )
+		self.ninjafile_text_ctrl.SetValue( "%s" % (fullpathembed) )
+
+
+    #Quit
+    def OnQuit(self, event):
+        self.Close()
+        event.Skip()
+
+
+    #Scan
+    def OnScan(self, event):
+        self.scandirname = ''
+        dlg2 = wx.FileDialog(self, "Choose a file to scan for stegofile", self.scandirname,"", "*.*", wx.OPEN)
+        if dlg2.ShowModal()==wx.ID_OK:
+            self.scanfilename=dlg2.GetFilename()
+            self.scandirname=dlg2.GetDirectory()	
+            scannedfiledir = self.scandirname
+            scannedfilename = self.scanfilename
+            global scanfilelocation
+            scanfilelocation = "%s/%s" % (scannedfiledir, scannedfilename)
+            dlg2.Destroy()
+            event.Skip()
+        
+            process = subprocess.Popen(['steghide', 'info', scanfilelocation], stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
+	    
+            out, err = process.communicate()
+            if out:
+                print out
+            if err:
+                print err
+
 
 
 if __name__ == "__main__":
