@@ -13,6 +13,8 @@ How to use:
 Simply execute the provided Stegostorus.py python file and you're away.
 You may want to make the file executable too!
 
+Please be aware that the development branch version of this application is in alpha, and many of the features are yet to be completed.
+
 The screenshot below shows the development branch version of the app:
 
 ![screenshot](http://i.imgur.com/S8DhVdZ.png)
